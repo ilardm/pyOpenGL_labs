@@ -130,7 +130,7 @@ def main(argv):
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)
     glutInitWindowPosition(0, 0)
     glutInitWindowSize(*WINDOW_SIZE)
-    glutCreateWindow('lab02.task01')
+    glutCreateWindow(b'lab02.task01')
 
     init()
 
