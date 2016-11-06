@@ -7,7 +7,8 @@ from OpenGL import GL, GLU, GLUT
 
 
 WINDOW_SIZE = (640, 480)
-LIGHT_POS = (900.0, 900.0, 900.0)
+LIGHT_POS = (900.0, 900.0, 900.0, 1.0)
+LIGHT_COLOR = '#ffffff'
 HOME_COLOR = '#7DAD83'
 ROOF_COLOR = '#CC4F25'
 GROUND_COLOR = '#663300'
@@ -18,8 +19,7 @@ ROOF_HEIGHT = HOME_HEIGHT * 0.45
 GROUND = -1 * (HOME_HEIGHT + ROOF_HEIGHT) / 2.0
 FPS = 60
 
-scene_rot = 0.0
-scene_scale = 1.0
+scene_rot = (0.0, 0.0)  # x/z rot
 
 
 def hex2rgb(hexstr):
@@ -46,6 +46,7 @@ def init():
     GL.glEnable(GL.GL_LIGHTING)
     GL.glEnable(GL.GL_LIGHT0)
     GL.glLightfv(GL.GL_LIGHT0, GL.GL_POSITION, LIGHT_POS)
+    GL.glLightfv(GL.GL_LIGHT0, GL.GL_DIFFUSE, hex2rgb(LIGHT_COLOR))
 
     GL.glClearDepth(1.0)
     GL.glDepthFunc(GL.GL_LEQUAL)
@@ -154,7 +155,7 @@ def draw_home_roof():
 
 
 def draw_scene():
-    global scene_rot, scene_scale
+    global scene_rot
 
     GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
 
@@ -192,8 +193,8 @@ def draw_scene():
     GL.glPushMatrix()
 
     # rotate, scale entire scene
-    GL.glRotatef(scene_rot, 1, 1, 1)
-    GL.glScale(scene_scale, scene_scale, scene_scale)
+    GL.glRotatef(scene_rot[0], 1, 0, 0)
+    GL.glRotatef(scene_rot[1], 0, 0, 1)
 
     draw_home_box()
     draw_home_roof()
@@ -204,25 +205,17 @@ def draw_scene():
     GLUT.glutSwapBuffers()
 
 
-def scene_loop(frame_no):
+def special_keys(key, *_):
     global scene_rot
 
-    time_passed = (1000.0 / FPS) * frame_no
-    rot = (time_passed * 360) / (10 * 1000)
-    rot %= 360
-
-    scene_rot = rot
-
-    GLUT.glutPostRedisplay()
-    GLUT.glutTimerFunc(int(1000.0/FPS), scene_loop, frame_no+1)
-
-def special_keys(key, *_):
-    global scene_scale
-
     if key == GLUT.GLUT_KEY_UP:
-        scene_scale *= 1.5
+        scene_rot = (scene_rot[0] - 10, scene_rot[1])
     elif key == GLUT.GLUT_KEY_DOWN:
-        scene_scale /= 1.5
+        scene_rot = (scene_rot[0] + 10, scene_rot[1])
+    elif key == GLUT.GLUT_KEY_RIGHT:
+        scene_rot = (scene_rot[0], scene_rot[1] - 10)
+    elif key == GLUT.GLUT_KEY_LEFT:
+        scene_rot = (scene_rot[0], scene_rot[1] + 10)
 
     GLUT.glutPostRedisplay()
 
@@ -237,7 +230,6 @@ def main(argv):
     init()
 
     GLUT.glutDisplayFunc(draw_scene)
-    GLUT.glutTimerFunc(int(1000.0/FPS), scene_loop, 0)
     GLUT.glutSpecialFunc(special_keys)
     GLUT.glutMainLoop()
 
