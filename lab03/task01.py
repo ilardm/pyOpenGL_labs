@@ -9,17 +9,21 @@ from OpenGL import GL, GLU, GLUT
 WINDOW_SIZE = (640, 480)
 LIGHT_POS = (900.0, 900.0, 900.0, 1.0)
 LIGHT_COLOR = '#ffffff'
-HOME_COLOR = '#7DAD83'
-ROOF_COLOR = '#CC4F25'
+HOME_COLOR = '#ffffff'
+ROOF_COLOR = '#ffffff'
 GROUND_COLOR = '#663300'
 HOME_WIDTH = 3.0
 HOME_HEIGHT = 3.0
 HOME_DEPTH = 4.0
+TEX_HOME_WIDTH = 0.5
+TEX_HOME_HEIGHT = 0.25
 ROOF_HEIGHT = HOME_HEIGHT * 0.45
+TEX_ROOF_WIDTH = TEX_HOME_WIDTH / 2.0
 GROUND = -1 * (HOME_HEIGHT + ROOF_HEIGHT) / 2.0
 FPS = 60
 
 scene_rot = (0.0, 0.0)  # x/z rot
+textures = []
 
 
 def hex2rgb(hexstr):
@@ -40,7 +44,10 @@ def hex2rgb(hexstr):
     return rgb
 
 
-def init():
+def init(argv):
+    from PIL import Image
+    global textures
+
     GL.glClearColor(0.5, 0.5, 0.5, 1)
 
     GL.glEnable(GL.GL_LIGHTING)
@@ -51,6 +58,19 @@ def init():
     GL.glClearDepth(1.0)
     GL.glDepthFunc(GL.GL_LEQUAL)
     GL.glEnable(GL.GL_DEPTH_TEST)
+
+    # http://pyopengl.sourceforge.net/context/tutorials/nehe7.html
+    img = Image.open(argv[1])
+    img = img.convert('RGBA')
+    img_data = img.tobytes('raw', 'RGBA', 0, -1)
+    GL.glHint(GL.GL_PERSPECTIVE_CORRECTION_HINT, GL.GL_NICEST)
+    textures.append(GL.glGenTextures(1))
+    GL.glBindTexture(GL.GL_TEXTURE_2D, textures[0])
+    GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+    GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, img.size[0], img.size[1], 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, img_data)
+    GL.glEnable(GL.GL_TEXTURE_2D)
 
     GL.glViewport(0, 0, *WINDOW_SIZE)
     GL.glMatrixMode(GL.GL_PROJECTION)
@@ -81,28 +101,28 @@ def draw_home_box():
     GL.glMaterialfv(GL.GL_FRONT_AND_BACK, GL.GL_DIFFUSE, hex2rgb(HOME_COLOR))
 
     # front wall
-    GL.glVertex3f(0,            0,              0)
-    GL.glVertex3f(HOME_WIDTH,   0,              0)
-    GL.glVertex3f(HOME_WIDTH,   0,              HOME_HEIGHT)
-    GL.glVertex3f(0,            0,              HOME_HEIGHT)
+    GL.glTexCoord2f(0.0,            0.5);                   GL.glVertex3f(0,            0,              0)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5);                   GL.glVertex3f(HOME_WIDTH,   0,              0)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(HOME_WIDTH,   0,              HOME_HEIGHT)
+    GL.glTexCoord2f(0.0,            0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(0,            0,              HOME_HEIGHT)
 
     # back wall
-    GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
-    GL.glVertex3f(0,            HOME_DEPTH,     0)
-    GL.glVertex3f(0,            HOME_DEPTH,     HOME_HEIGHT)
-    GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     HOME_HEIGHT)
+    GL.glTexCoord2f(0.0,            0.0);                   GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.0);                   GL.glVertex3f(0,            HOME_DEPTH,     0)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, TEX_HOME_HEIGHT);       GL.glVertex3f(0,            HOME_DEPTH,     HOME_HEIGHT)
+    GL.glTexCoord2f(0.0,            TEX_HOME_HEIGHT);       GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     HOME_HEIGHT)
 
     # right wall
-    GL.glVertex3f(HOME_WIDTH,   0,              0)
-    GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
-    GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     HOME_HEIGHT)
-    GL.glVertex3f(HOME_WIDTH,   0,              HOME_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5);                   GL.glVertex3f(HOME_WIDTH,   0,              0)
+    GL.glTexCoord2f(1.0,            0.5);                   GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
+    GL.glTexCoord2f(1.0,            0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     HOME_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(HOME_WIDTH,   0,              HOME_HEIGHT)
 
     # left wall
-    GL.glVertex3f(0,            HOME_DEPTH,     0)
-    GL.glVertex3f(0,            0,              0)
-    GL.glVertex3f(0,            0,              HOME_HEIGHT)
-    GL.glVertex3f(0,            HOME_DEPTH,     HOME_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.0);                   GL.glVertex3f(0,            HOME_DEPTH,     0)
+    GL.glTexCoord2f(1.0,            0.0);                   GL.glVertex3f(0,            0,              0)
+    GL.glTexCoord2f(1.0,            TEX_HOME_HEIGHT);       GL.glVertex3f(0,            0,              HOME_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, TEX_HOME_HEIGHT);       GL.glVertex3f(0,            HOME_DEPTH,     HOME_HEIGHT)
 
     GL.glEnd()
     GL.glPopMatrix()
@@ -124,30 +144,30 @@ def draw_home_roof():
     GL.glBegin(GL.GL_QUADS)
 
     # righ part of the roof
-    GL.glVertex3f(HOME_WIDTH,   0,              0)
-    GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
-    GL.glVertex3f(roof_center,  HOME_DEPTH,     ROOF_HEIGHT)
-    GL.glVertex3f(roof_center,  0,              ROOF_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(HOME_WIDTH,   0,              0)
+    GL.glTexCoord2f(1.0,            0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
+    GL.glTexCoord2f(1.0,            1.0);                   GL.glVertex3f(roof_center,  HOME_DEPTH,     ROOF_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 1.0);                   GL.glVertex3f(roof_center,  0,              ROOF_HEIGHT)
 
     # left part of the roof
-    GL.glVertex3f(0,            HOME_DEPTH,     0)
-    GL.glVertex3f(0,            0,              0)
-    GL.glVertex3f(roof_center,  0,              ROOF_HEIGHT)
-    GL.glVertex3f(roof_center,  HOME_DEPTH,     ROOF_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, TEX_HOME_HEIGHT);       GL.glVertex3f(0,            HOME_DEPTH,     0)
+    GL.glTexCoord2f(1.0,            TEX_HOME_HEIGHT);       GL.glVertex3f(0,            0,              0)
+    GL.glTexCoord2f(1.0,            0.5);                   GL.glVertex3f(roof_center,  0,              ROOF_HEIGHT)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5);                   GL.glVertex3f(roof_center,  HOME_DEPTH,     ROOF_HEIGHT)
 
     GL.glEnd()
 
     GL.glBegin(GL.GL_TRIANGLES)
 
     # front side of the roof
-    GL.glVertex3f(0,            0,              0)
-    GL.glVertex3f(HOME_WIDTH,   0,              0)
-    GL.glVertex3f(roof_center,  0,              ROOF_HEIGHT)
+    GL.glTexCoord2f(0.0,            0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(0,            0,              0)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, 0.5 + TEX_HOME_HEIGHT); GL.glVertex3f(HOME_WIDTH,   0,              0)
+    GL.glTexCoord2f(TEX_ROOF_WIDTH, 1.0);                   GL.glVertex3f(roof_center,  0,              ROOF_HEIGHT)
 
     # back side of the roof
-    GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
-    GL.glVertex3f(roof_center,  HOME_DEPTH,     ROOF_HEIGHT)
-    GL.glVertex3f(0,            HOME_DEPTH,     0)
+    GL.glTexCoord2f(0.0,            TEX_HOME_HEIGHT);       GL.glVertex3f(HOME_WIDTH,   HOME_DEPTH,     0)
+    GL.glTexCoord2f(TEX_HOME_WIDTH, TEX_HOME_HEIGHT);       GL.glVertex3f(0,            HOME_DEPTH,     0)
+    GL.glTexCoord2f(TEX_ROOF_WIDTH, 0.5);                   GL.glVertex3f(roof_center,  HOME_DEPTH,     ROOF_HEIGHT)
 
     GL.glEnd()
 
@@ -227,7 +247,7 @@ def main(argv):
     GLUT.glutInitWindowSize(*WINDOW_SIZE)
     GLUT.glutCreateWindow(b'lab03.task01')
 
-    init()
+    init(argv)
 
     GLUT.glutDisplayFunc(draw_scene)
     GLUT.glutSpecialFunc(special_keys)
