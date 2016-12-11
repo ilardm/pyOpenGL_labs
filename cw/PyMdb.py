@@ -213,9 +213,9 @@ class SegmentCreator:
             varariable=coords[3]    # Имя параметра
             globals()[varariable]=coords[4]  # Создаем перменную с именем параметра
         if (stype==1):  # Отрезок
-            seg=linesegment(point(X1,Y1),point(X2,Y2)) # NOTE: if you want point class instances -- do not forget to instantiate 'em!
+            seg=linesegment(point(X1,Y1),point(X2,Y2))
         elif (stype==2):    # Дуга
-            seg=arcsegment(point(X1,Y1), point(X2,Y2), point(XM,YM)) # NOTE: if you want point class instances -- do not forget to instantiate 'em!
+            seg=arcsegment(point(X1,Y1), point(X2,Y2), point(XM,YM))
         else:   # Не пойми что
             seg=None
             assert(True)
@@ -228,12 +228,12 @@ class SegmentCreator:
         line=[]     # Строка с данными для одного сегмента
         hold3=1     # Первый сегмент - всегда единица
         for row in rows:            # Организуем цикл по строкам из базы данных
-            if hold3==row[2]:       # Если запись относится к рассматриваемому сегменту
-                line.append(row)    # Добавляем данные
-            else:                   # Если начался новый сегмент
+            if hold3!=row[2]:       # Если запись относится к рассматриваемому сегменту
                 lines.append(line)  # прочитанные данные помещаем в выходное значение
                 line=[]             # Обнуляем данные по сегменту
+            line.append(row)    # Добавляем данные
             hold3=row[2]            # А здесь хранится номер рассматриваемого сегмента
+        lines.append(line)
         return lines
 
 def main(argv):
@@ -250,7 +250,7 @@ def main(argv):
   DRV = '{Microsoft Access Driver (*.mdb)}'
   PWD = ''
 
-  PanelPos=2        # Номер панели (PanelPos в таблице TPaths)
+  PanelPos=int(argv[2])        # Номер панели (PanelPos в таблице TPaths)
   PathPos=1         # Номер контура (PathID в таблице TPaths)
   base=database()
   rows=base.GetFromBase(MDB,PathPos,PanelPos)
