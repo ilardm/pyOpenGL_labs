@@ -9,6 +9,7 @@ WINDOW_SIZE = (640, 480)
 LINES_POINTS = []
 INITIAL_TRANS = [0, 0]
 INITIAL_SCALE = 1.0
+ARC_APPROX_PRECISION = 16
 
 scene_trans = INITIAL_TRANS.copy()
 scene_scale = INITIAL_SCALE
@@ -125,6 +126,14 @@ class point:
     def Get(self):
         return (self._x,self._y)
 
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
     def __str__(self):
         return '(%r, %r)' % (self._x, self._y)
 
@@ -177,10 +186,92 @@ class linesegment (segment):
 
 class arcsegment (segment):
     '''Это сегмент дуга'''
+
+    # source: http://algolist.manual.ru/maths/geom/equation/Circle.cpp
+
+    EPSILON = 10 ** -9
+
     def __init__(self,beg=point(0,0),end=point(0,0), mid=point(0,0)):
-        self._beg=beg
-        self._end=end
-        self._mid=mid
+        self._beg=beg           # pt1
+        self._end=end           # pt3
+        self._mid=mid           # pt2
+
+        self._center = point(0, 0)
+        self._radius = -1
+
+        if not self._is_prependicular(beg, mid, end):
+            self._calc_circle(beg, mid, end)
+        elif not self._is_prependicular(beg, end, mid):
+            self._calc_circle(beg, end, mid)
+        elif not self._is_prependicular(mid, beg, end):
+            self._calc_circle(mid, beg, end)
+        elif not self._is_prependicular(mid, end, beg):
+            self._calc_circle(mid, end, beg)
+        elif not self._is_prependicular(end, mid, beg):
+            self._calc_circle(end, mid, beg)
+        elif not self._is_prependicular(end, beg, mid):
+            self._calc_circle(end, beg, mid)
+
+    def _is_prependicular(self, pt1, pt2, pt3):
+        yda = pt2.y - pt1.y
+        xda = pt2.x - pt1.x
+        ydb = pt3.y - pt2.y
+        xdb = pt3.x - pt2.x
+
+        if abs(xda) <= self.EPSILON and abs(ydb) <= self.EPSILON:
+            return False
+
+        if abs(yda) <= self.EPSILON:
+            return True
+        elif abs(ydb) <= self.EPSILON:
+            return True
+        elif abs(xda) <= self.EPSILON:
+            return True
+        elif abs(xdb) <= self.EPSILON:
+            return True
+
+        return False
+
+    @staticmethod
+    def _length(pt1, pt2):
+        from math import sqrt
+
+        return sqrt((pt2.x - pt1.x)**2 + (pt2.y - pt1.y)**2)
+
+    def _calc_circle(self, pt1, pt2, pt3):
+        yda = pt2.y - pt1.y
+        xda = pt2.x - pt1.x
+        ydb = pt3.y - pt2.y
+        xdb = pt3.x - pt2.x
+
+        if abs(xda) <= self.EPSILON and abs(ydb) <= self.EPSILON:
+            cx = 0.5 * (pt2.x + pt3.x)
+            cy = 0.5 * (pt1.y + pt2.y)
+
+            self._center = point(cx, cy)
+            self._radius = self._length(self._center, pt1)
+
+            return True
+
+        aSlope = yda / xda
+        bSlope = ydb / xdb
+
+        if abs(aSlope - bSlope) <= self.EPSILON:
+            return False
+
+        cx = (
+            aSlope * bSlope * (pt1.y - pt3.y) \
+            + bSlope * (pt1.x + pt2.x) \
+            - aSlope * (pt2.x + pt3.x)
+        ) / (
+            2 * (bSlope - aSlope)
+        )
+        cy = -1 * (cx - (pt1.x + pt2.x) / 2) / aSlope + (pt1.y + pt2.y) / 2
+
+        self._center = point(cx, cy)
+        self._radius = self._length(self._center, pt1)
+
+        return True
 
     def Set(self,beg=point(0,0),end=point(0,0), mid=point(0,0)):
         self._beg=beg
@@ -190,16 +281,55 @@ class arcsegment (segment):
     def Get(self):
         return (self._beg,self._end, self._mid)
 
-    def GetPoints(self):
-        # FIXME: actually we need to build circle part from lines with
-        # NVERT-1 lines but for simplicity lets assume NVERT=3 :P
-
+    def _get_dummy_points(self):
         return (
             self._beg.Get(),
             self._mid.Get(),
             self._mid.Get(),
             self._end.Get()
         )
+
+    def _approximate_arc(self, precision=ARC_APPROX_PRECISION):
+        from math import atan2, sqrt, pi, cos, sin
+
+        print('approximate %r' % str(self))
+        print('center %r; radius %r' % (str(self._center), self._radius))
+
+        start = atan2(self._beg.y - self._center.y, self._beg.x - self._center.x)
+        start_a = start * 360 / (2 * pi)
+        end = atan2(self._end.y - self._center.y, self._end.x - self._center.x)
+        end_a = end * 360 / (2 * pi)
+
+        # FIXME: distance calculation via mid-point
+        distance = end - start
+        delta = distance / precision
+
+        print('a %r (%r) -> %r (%r); dist %r; da %r' % (start, start_a, end, end_a, distance, delta))
+
+        ret = [self._beg.Get()]
+
+        for i in range(1, precision):
+            angle = start + delta * i
+
+            x = cos(angle) * self._radius + self._center.x
+            y = sin(angle) * self._radius + self._center.y
+
+            pt = point(x, y).Get()
+            ret.append(pt)
+            ret.append(pt)
+
+        ret.append(self._end.Get())
+
+        # print('approximated arc: %r' % ret)
+        print('')
+
+        return ret
+
+    def GetPoints(self):
+        if self._radius > 0:
+            return self._approximate_arc()
+
+        return self._get_dummy_points()
 
     def __str__(self):
         return 'arc %s -> %s -> %s' % (self._beg, self._mid, self._end)
