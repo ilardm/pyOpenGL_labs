@@ -289,27 +289,68 @@ class arcsegment (segment):
             self._end.Get()
         )
 
+    def _ox_angle(self, pt):
+        from math import atan2, pi
+
+        rad = atan2(pt.y - self._center.y, pt.x - self._center.x)
+        if rad < 0:
+            rad += (2 * pi)
+
+        grad = rad * 360 / (2 * pi)
+
+        return (rad, grad)
+
     def _approximate_arc(self, precision=ARC_APPROX_PRECISION):
         from math import atan2, sqrt, pi, cos, sin
 
         print('approximate %r' % str(self))
         print('center %r; radius %r' % (str(self._center), self._radius))
 
-        start = atan2(self._beg.y - self._center.y, self._beg.x - self._center.x)
-        start_a = start * 360 / (2 * pi)
-        end = atan2(self._end.y - self._center.y, self._end.x - self._center.x)
-        end_a = end * 360 / (2 * pi)
+        beg, bega = self._ox_angle(self._beg)
+        mid, mida = self._ox_angle(self._mid)
+        end, enda = self._ox_angle(self._end)
 
-        # FIXME: distance calculation via mid-point
-        distance = end - start
+        print(
+            'a {beg} ({bega}) -- {mid} ({mida}) -- {end} ({enda})'.format(
+                beg=beg, bega=bega,
+                mid=mid, mida=mida,
+                end=end, enda=enda,
+            )
+        )
+
+        ccw = mid - beg
+        if ccw >= 0:
+            ccw = True
+        else:
+            ccw = False
+
+        # fix non-monotone end values
+        if end < mid and ccw:
+            end += (2 * pi)
+            enda += 360
+        elif end > mid and not ccw:
+            end -= (2 * pi)
+            enda -= 360
+
+        print(
+            'fixed a (ccw: {ccw}) {beg} ({bega}) -- {mid} ({mida}) -- {end} ({enda})'.format(
+                ccw=ccw,
+                beg=beg, bega=bega,
+                mid=mid, mida=mida,
+                end=end, enda=enda,
+            )
+        )
+
+
+        distance = end - beg
         delta = distance / precision
 
-        print('a %r (%r) -> %r (%r); dist %r; da %r' % (start, start_a, end, end_a, distance, delta))
+        print('dist {dist}; da {da}'.format(dist=distance, da=delta))
 
         ret = [self._beg.Get()]
 
         for i in range(1, precision):
-            angle = start + delta * i
+            angle = beg + delta * i
 
             x = cos(angle) * self._radius + self._center.x
             y = sin(angle) * self._radius + self._center.y
@@ -320,7 +361,6 @@ class arcsegment (segment):
 
         ret.append(self._end.Get())
 
-        # print('approximated arc: %r' % ret)
         print('')
 
         return ret
@@ -391,6 +431,8 @@ def main(argv):
   for line in lines:
     seg=sg.CreateSegment(line)
     pat.Add(seg)
+
+  print('\nprepare scene and draw\n')
 
   prepare_scene(pat)
   initOpenGL(argv)
